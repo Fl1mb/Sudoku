@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <vector>
 #include <optional>
+
+
+
 class GameField
 {
 public:
@@ -27,7 +30,7 @@ public:
 
     [[nodiscard]] uint8_t getNumber(uint8_t x, uint8_t y) const;
     [[nodiscard]] std::vector<std::pair<uint8_t, uint8_t>> getEmptyCoordinates()const;
-
+    [[nodiscard]] std::array<std::array<std::optional<uint8_t>, 9> ,9> getArray()const;
 
 
 private:

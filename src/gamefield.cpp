@@ -88,4 +88,9 @@ std::vector<std::pair<uint8_t, uint8_t> > GameField::getEmptyCoordinates() const
     return result;
 }
 
+std::array<std::array<std::optional<uint8_t>, 9>, 9> GameField::getArray() const
+{
+    return this->gameField;
+}
+
 GameField::~GameField() = default;

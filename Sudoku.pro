@@ -11,11 +11,15 @@ CONFIG += c++17
 SOURCES += \
     main.cpp \
     src/engine.cpp \
-    src/gamefield.cpp
+    src/gamefield.cpp \
+    src/graphics.cpp \
+    src/sudoku.cpp
 
 HEADERS += \
     src/engine.h \
-    src/gamefield.h
+    src/gamefield.h \
+    src/graphics.h \
+    src/sudoku.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

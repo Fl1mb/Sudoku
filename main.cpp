@@ -1,13 +1,16 @@
 #include <src/gamefield.h>
 #include <iostream>
-#include <QDebug>
 #include "src/engine.h"
+#include <QDebug>
+#include "src/sudoku.h"
+#include <QApplication>
 
 int main(int argc, char *argv[])
 {
-    Engine eng(GAME_LEVEL::EASY_LEVEL);
-    eng.generate();
-    eng.print();
+    QApplication a(argc, argv);
 
-    return 0;
+    Sudoku sudoku;
+    sudoku.show();
+
+    return a.exec();
 }
