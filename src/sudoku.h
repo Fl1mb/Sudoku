@@ -27,6 +27,9 @@ public:
 public slots:
 
     void PushNumber(const QString& number);
+    void EraseNumber();
+    void GiveHelp();
+    void CancelAction();
 
 private:
 
@@ -66,9 +69,6 @@ public:
 
 public slots:
     void changeTimer();
-
-signals:
-
 private:
     std::unique_ptr<QHBoxLayout> layout;
     std::unique_ptr<QLabel> gameLVL;
@@ -80,6 +80,8 @@ private:
     int seconds;
 };
 
+
+
 class HelpBar : public QWidget{
     Q_OBJECT
 public:
@@ -90,6 +92,9 @@ public:
 
 signals:
     void NotesPressed();
+    void ErasePressed();
+    void getHelp();
+    void cancel();
 
 private:
     std::unique_ptr<QHBoxLayout> layout;
@@ -101,8 +106,10 @@ private:
 
 
     bool NotesMode;
+    uint8_t helpCount;
 
-    static constexpr QSize Size{70,70};
+    static constexpr QSize Size{100,40};
+
 };
 
 #endif // SUDOKU_H

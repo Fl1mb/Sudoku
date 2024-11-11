@@ -164,4 +164,9 @@ GameField& Engine::getGameField() const
     return this->pimpl->field;
 }
 
+uint8_t Engine::getAnswer(uint8_t row, uint8_t col) const
+{
+    return this->pimpl->answer.getNumber(row, col);
+}
+
 

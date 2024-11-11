@@ -32,6 +32,7 @@ public:
 
     std::array<std::array<std::optional<uint8_t >, 9>,9> getFieldArray()const;
     GameField& getGameField()const;
+    uint8_t getAnswer(uint8_t row, uint8_t col) const;
 
 private:
     bool isSafe(uint8_t row, uint8_t col, uint8_t val);

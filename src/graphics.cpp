@@ -1,7 +1,7 @@
 #include "graphics.h"
 
 Graphics::Graphics(QGraphicsView *parent): QGraphicsView(parent), scene(std::make_unique<QGraphicsScene>()),
-    engine(std::make_unique<Engine>()), mistakeCounter(0)
+    engine(std::make_unique<Engine>()), mistakeCounter(0), ActionStack(std::stack<Action>())
 {
     this->setScene(this->scene.get());
     this->setRenderHint(QPainter::Antialiasing);
@@ -63,14 +63,39 @@ void Graphics::changeChosen(const QString &number)
 
     if(this->NoteMode){
         NotesArray[chosenSquare.first.value()][chosenSquare.second.value()]->setPlainText(number);
+        ActionStack.push({{chosenSquare.first.value(), chosenSquare.second.value()},
+                          Graphics::Action::TYPE_OF_ACTION::MAKE_NOTE,
+                          std::nullopt ,
+                          static_cast<uint8_t>(number.toInt())});
     }else{
         TextArray[chosenSquare.first.value()][chosenSquare.second.value()]->setPlainText(number);
+        ActionStack.push({{chosenSquare.first.value(), chosenSquare.second.value()},
+                          Graphics::Action::TYPE_OF_ACTION::ADD,
+                          std::nullopt,
+                          static_cast<uint8_t>(number.toInt())});
     }
+    RecentlyAdded.push_back({chosenSquare.first.value(), chosenSquare.second.value()});
+
 
     comeBack();
     chosenSquare.first = std::nullopt;
     chosenSquare.second = std::nullopt;
     HighlightedSquares.clear();
+}
+
+void Graphics::openRandomNumber()
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<>dis(0,9);
+
+    uint8_t x = dis(gen), y = dis(gen);
+    while(this->TextArray[x][y]->toPlainText() != ""){
+        x = dis(gen);
+        y = dis(gen);
+    }
+
+    this->TextArray[x][y]->setPlainText(QString::number(this->engine->getAnswer(x, y)));
 }
 
 void Graphics::StartPlaying()
@@ -82,6 +107,87 @@ void Graphics::StartPlaying()
     this->engine->makeGameField();
     this->makeSudoku(this->engine->getGameField());
     this->update();
+}
+void Graphics::eraseChosenNumber()
+{
+    // Получаем выбранный номер и заметку из соответствующих массивов
+    QString number = this->TextArray[this->chosenSquare.first.value()][this->chosenSquare.second.value()]->toPlainText();
+    QString noteNumber = this->NotesArray[this->chosenSquare.first.value()][this->chosenSquare.second.value()]->toPlainText();
+
+    // Проверяем, есть ли номер и заметка для удаления
+    if (!number.isEmpty() || !noteNumber.isEmpty()) {
+        // Сохраняем действия в стеке для возможности отмены
+        if (!number.isEmpty()) {
+            this->ActionStack.push({{chosenSquare.first.value(), chosenSquare.second.value()},
+                                    Graphics::Action::TYPE_OF_ACTION::ERASE, static_cast<uint8_t>(number.toInt()), std::nullopt});
+        }
+        if (!noteNumber.isEmpty()) {
+            this->ActionStack.push({{chosenSquare.first.value(), chosenSquare.second.value()},
+                                    Graphics::Action::TYPE_OF_ACTION::DELETE_NOTE,
+                                    static_cast<uint8_t>(noteNumber.toInt()), std::nullopt});
+        }
+
+        // Очищаем текстовые поля
+        this->TextArray[this->chosenSquare.first.value()][this->chosenSquare.second.value()]->setPlainText("");
+        this->NotesArray[this->chosenSquare.first.value()][this->chosenSquare.second.value()]->setPlainText("");
+
+        // Возвращаемся к предыдущему состоянию (если это необходимо)
+        this->comeBack();
+    }
+}
+
+void Graphics::returnLastAction()
+{
+    // Проверяем, есть ли действия в стеке
+    if (this->ActionStack.empty()) {
+        return;
+    }
+
+    // Получаем последнее действие и удаляем его из стека
+    Action lastAction = this->ActionStack.top();
+    this->ActionStack.pop();
+
+    uint8_t x = lastAction.coordinates.first;
+    uint8_t y = lastAction.coordinates.second;
+
+    // В зависимости от типа действия восстанавливаем состояние
+    switch (lastAction.action) {
+        case Action::TYPE_OF_ACTION::ERASE:
+            // Восстанавливаем значение, которое было до удаления
+            if (lastAction.numberWAS.has_value()) {
+                this->TextArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+            }
+            break;
+
+        case Action::TYPE_OF_ACTION::ADD:
+            // Если добавляли число, нужно удалить его
+            if (lastAction.numberWAS.has_value()) {
+                this->TextArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+            }else{
+                this->TextArray[x][y]->setPlainText("");
+            }
+            break;
+
+        case Action::TYPE_OF_ACTION::MAKE_NOTE:
+            // Если добавляли заметку, нужно удалить её
+            if (lastAction.numberWAS.has_value()) {
+                this->NotesArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+            }else{
+                this->NotesArray[x][y]->setPlainText("");
+            }
+            break;
+
+        case Action::TYPE_OF_ACTION::DELETE_NOTE:
+            // Восстанавливаем заметку, которая была удалена
+            if (lastAction.numberWAS.has_value()) {
+                this->NotesArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+            }
+            break;
+
+        default:
+            break;
+
+    }
 }
 
 void Graphics::changeSudoku()
@@ -154,7 +260,7 @@ void Graphics::makeSudoku(const GameField &field)
             this->scene->addItem(NotesArray[row][col].get());
         }
     }
-    pen.setColor(Qt::blue);
+    pen.setColor(Qt::black);
     pen.setWidth(3);
     for(int i = 0; i< 3; i++){
         for(int j = 0; j < 3; j++){
@@ -212,10 +318,16 @@ void Graphics::mousePressEvent(QMouseEvent *event)
             chosenSquare.second = std::nullopt;
 
             if(x1 == x and y1 == y)return;
+        }else{
+            for(const auto& pair : RecentlyAdded){
+                if(pair.first == x and pair.second == y)
+                    goto MARK;
+            }
         }
         return;
     }
 
+    MARK:
     if(chosenSquare.first.has_value()){
         comeBack();
 

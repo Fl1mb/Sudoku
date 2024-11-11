@@ -16,9 +16,13 @@ Sudoku::Sudoku(QWidget *parent) : QWidget(parent),
     QObject::connect(helpBar.get(), &HelpBar::NotesPressed, this, [this](){
         this->game->setNodeMode(this->helpBar->isNotesMode());
     });
+    QObject::connect(helpBar.get(), &HelpBar::getHelp, this, &Sudoku::GiveHelp);
+    QObject::connect(helpBar.get(), &HelpBar::ErasePressed, this, &Sudoku::EraseNumber);
+    QObject::connect(helpBar.get(), &HelpBar::cancel, this, &Sudoku::CancelAction);
 
     this->setLayout(layout.get());
     this->move(500,0);
+    this->setStyleSheet("background-color: #CFD5D8");
 
     this->game->StartPlaying();
 }
@@ -33,15 +37,43 @@ void Sudoku::PushNumber(const QString &number)
     }
 }
 
+void Sudoku::EraseNumber()
+{
+    if(game->isChosen()){
+        this->game->eraseChosenNumber();
+    }
+}
+
+void Sudoku::GiveHelp()
+{
+    this->game->openRandomNumber();
+}
+
+void Sudoku::CancelAction()
+{
+    this->game->returnLastAction();
+}
+
 Numbers::Numbers(QWidget *parent) : QWidget(parent),
     layout(std::make_unique<QHBoxLayout>())
 {
+    QString style{("QPushButton{"
+                  "font: bold 14px;"
+                  "color: black;"
+                  "background-color: #A4B0B7;"
+                  "padding: 10px;"
+                  "border-radius: 10px;"
+                  "}")};
+
     for(uint8_t i = 0; i < 9;i ++){
         buttons[i] = std::make_unique<QPushButton>(QString::number(i + 1));
         buttons[i]->setFixedSize(QSize(40,40));
+        buttons[i]->setStyleSheet(style);
+
         layout->addWidget(buttons[i].get());
 
         QObject::connect(buttons[i].get(), &QPushButton::clicked, this, [this, button = buttons[i].get()](){this->SendSignal(button);});
+
     }
 
     layout->setSpacing(1);
@@ -62,11 +94,12 @@ HelpBar::HelpBar(QWidget *parent) : QWidget(parent),
     eraseButton(std::make_unique<QPushButton>()),
     helpButton(std::make_unique<QPushButton>()),
     notesButton(std::make_unique<QPushButton>()),
-    NotesMode(false)
+    NotesMode(false),
+    helpCount(3)
 {
     cancelButton->setText("cancel");
     eraseButton->setText("erase");
-    helpButton->setText("help");
+    helpButton->setText("help " + QString::number(helpCount) + "/3");
     notesButton->setText("make notes");
 
     cancelButton->setFixedSize(Size);
@@ -74,16 +107,38 @@ HelpBar::HelpBar(QWidget *parent) : QWidget(parent),
     helpButton->setFixedSize(Size);
     notesButton->setFixedSize(Size);
 
+    QString style{("QPushButton{"
+                  "font: bold 14px;"
+                  "color: black;"
+                  "background-color: #A4B0B7;"
+                  "padding: 10px;"
+                  "border-radius: 10px;"
+                  "}")};
+
+    cancelButton->setStyleSheet(style);
+    eraseButton->setStyleSheet(style);
+    helpButton->setStyleSheet(style);
+    notesButton->setStyleSheet(style);
+
     QObject::connect(notesButton.get(), &QPushButton::clicked, this, [this, button = notesButton.get()](){
         this->NotesMode = !this->NotesMode;
         if(NotesMode)
             this->notesButton->setText("Notes On");
         else
-            this->notesButton->setText("Make note");
+            this->notesButton->setText("make note");
 
     });
 
     QObject::connect(notesButton.get(), &QPushButton::clicked, this, [this](){emit this->NotesPressed();});
+    QObject::connect(eraseButton.get(), &QPushButton::clicked, this, [this](){emit this->ErasePressed();});
+    QObject::connect(helpButton.get(), &QPushButton::clicked, this, [this](){
+        if(this->helpCount > 0){
+            emit this->getHelp();
+            this->helpButton->setText("help " + QString::number(--helpCount)  + "/3");
+        }else
+            this->helpButton->setText("Can't help!");
+    });
+    QObject::connect(cancelButton.get(), &QPushButton::clicked, this , [this](){emit this->cancel();});
 
     layout->addWidget(cancelButton.get());
     layout->addWidget(eraseButton.get());
@@ -120,14 +175,30 @@ InfoBar::InfoBar(GAME_LEVEL lvl, QWidget *parent): QWidget(parent),
         break;
     }
 
+
+
+
+
     timer = std::make_unique<QTimer>();
     mistakes = std::make_unique<QLabel>("0/3");
     timer_l= std::make_unique<QLabel>("00:00");
+
 
     layout->addWidget(gameLVL.get());
     layout->addWidget(timer_l.get());
     layout->addWidget(mistakes.get());
 
+    QString labelStyle = "QLabel {"
+                            "font: bold 14px;" // Установка жирного шрифта
+                            "color: white;"     // Цвет текста
+                            "padding: 5px;"     // Отступы
+                            "background-color: rgba(0, 0, 0, 0.5);" // Полупрозрачный черный фон
+                            "border-radius: 5px;" // Закругленные углы
+                            "}";
+
+    gameLVL->setStyleSheet(labelStyle);
+    mistakes->setStyleSheet(labelStyle);
+    timer_l->setStyleSheet(labelStyle);
 
     QObject::connect(timer.get(), &QTimer::timeout, this, &InfoBar::changeTimer);
     timer->start(1000);
