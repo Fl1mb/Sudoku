@@ -24,6 +24,7 @@ Sudoku::Sudoku(GAME_LEVEL level , QWidget *parent) : QWidget(parent),
     this->setLayout(layout.get());
     this->move(500,0);
     this->setStyleSheet("background-color: #CFD5D8");
+    this->setWindowIcon(QIcon(":/ico/icon.png"));
 
     this->game->StartPlaying();
 }

@@ -4,6 +4,7 @@ Application::Application(QWidget *parent) : QWidget(nullptr)
 {
     this->setWindowTitle("Sudoku game");
     this->setFixedSize(300, 200);
+    this->setWindowIcon(QIcon(":/ico/icon.png"));
 
     QPalette palette = this->palette();
     palette.setColor(QPalette::Window, QColor(240, 240, 240));
@@ -81,6 +82,7 @@ LevelChoose::LevelChoose(QWidget *parent) : QWidget(parent)
 {
     this->setWindowTitle("Choose Level");
     this->setFixedSize(300, 300);
+    this->setWindowIcon(QIcon(":/ico/icon.png"));
 
     QPalette palette = this->palette();
     palette.setColor(QPalette::Window, QColor(240, 240, 240)); // Светлый фон
@@ -139,6 +141,7 @@ LevelChoose::LevelChoose(QWidget *parent) : QWidget(parent)
 GameOver::GameOver(Graphics::END_OF_GAME end, QWidget *parent) : QWidget(parent)
 {
     this->setFixedSize(300, 200);
+    this->setWindowIcon(QIcon(":/ico/icon.png"));
 
     // Установка фона
     QPalette palette = this->palette();
