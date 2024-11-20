@@ -1,11 +1,11 @@
 #include "sudoku.h"
 
-Sudoku::Sudoku(QWidget *parent) : QWidget(parent),
-    game(std::make_unique<Graphics>()),
+Sudoku::Sudoku(GAME_LEVEL level , QWidget *parent) : QWidget(parent),
+    game(std::make_unique<Graphics>(level)),
     numbers(std::make_unique<Numbers>()),
     layout(std::make_unique<QVBoxLayout>()),
     helpBar(std::make_unique<HelpBar>()),
-    infoBar(std::make_unique<InfoBar>())
+    infoBar(std::make_unique<InfoBar>(level))
 {
     layout->addWidget(infoBar.get());
     layout->addWidget(game.get());
@@ -19,6 +19,7 @@ Sudoku::Sudoku(QWidget *parent) : QWidget(parent),
     QObject::connect(helpBar.get(), &HelpBar::getHelp, this, &Sudoku::GiveHelp);
     QObject::connect(helpBar.get(), &HelpBar::ErasePressed, this, &Sudoku::EraseNumber);
     QObject::connect(helpBar.get(), &HelpBar::cancel, this, &Sudoku::CancelAction);
+    QObject::connect(game.get(), &Graphics::GameEnd, this, &Sudoku::endGame);
 
     this->setLayout(layout.get());
     this->move(500,0);
@@ -27,10 +28,21 @@ Sudoku::Sudoku(QWidget *parent) : QWidget(parent),
     this->game->StartPlaying();
 }
 
+Sudoku::~Sudoku()
+{
+    QObject::disconnect(numbers.get(), Numbers::NumberPressed, this, &Sudoku::PushNumber);
+    QObject::disconnect(helpBar.get(), &HelpBar::getHelp, this, &Sudoku::GiveHelp);
+    QObject::disconnect(helpBar.get(), &HelpBar::ErasePressed, this, &Sudoku::EraseNumber);
+    QObject::disconnect(helpBar.get(), &HelpBar::cancel, this, &Sudoku::CancelAction);
+    QObject::disconnect(game.get(), &Graphics::GameEnd, this, &Sudoku::endGame);
+    QObject::disconnect(helpBar.get(), &HelpBar::NotesPressed, this, nullptr);
+}
+
+
 
 void Sudoku::PushNumber(const QString &number)
 {
-    if(game->isChosen()){
+    if(game and game->isChosen()){
         this->game->changeChosen(number);
         this->infoBar->setMistakes(this->game->getMistakes());
 
@@ -52,6 +64,11 @@ void Sudoku::GiveHelp()
 void Sudoku::CancelAction()
 {
     this->game->returnLastAction();
+}
+
+void Sudoku::endGame(Graphics::END_OF_GAME end)
+{
+    emit this->GameIsOver(end);
 }
 
 Numbers::Numbers(QWidget *parent) : QWidget(parent),
@@ -81,7 +98,11 @@ Numbers::Numbers(QWidget *parent) : QWidget(parent),
 
 }
 
-Numbers::~Numbers()= default;
+Numbers::~Numbers(){
+    for(uint8_t i = 0; i < 9;i ++){
+        QObject::disconnect(buttons[i].get(), &QPushButton::clicked, this, nullptr);
+    }
+}
 
 void Numbers::SendSignal(QPushButton *button)
 {
@@ -148,6 +169,14 @@ HelpBar::HelpBar(QWidget *parent) : QWidget(parent),
     this->setLayout(layout.get());
 }
 
+HelpBar::~HelpBar()
+{
+    QObject::disconnect(notesButton.get(), &QPushButton::clicked, this, nullptr);
+    QObject::disconnect(eraseButton.get(), &QPushButton::clicked, this, nullptr);
+    QObject::disconnect(helpButton.get(), &QPushButton::clicked, this, nullptr);
+    QObject::disconnect(cancelButton.get(), &QPushButton::clicked, this , nullptr);
+}
+
 bool HelpBar::isNotesMode() const
 {
     return this->NotesMode;
@@ -189,12 +218,12 @@ InfoBar::InfoBar(GAME_LEVEL lvl, QWidget *parent): QWidget(parent),
     layout->addWidget(mistakes.get());
 
     QString labelStyle = "QLabel {"
-                            "font: bold 14px;" // Установка жирного шрифта
-                            "color: white;"     // Цвет текста
-                            "padding: 5px;"     // Отступы
-                            "background-color: rgba(0, 0, 0, 0.5);" // Полупрозрачный черный фон
-                            "border-radius: 5px;" // Закругленные углы
-                            "}";
+                         "font: bold 14px;" // Установка жирного шрифта
+            "color: white;"     // Цвет текста
+            "padding: 5px;"     // Отступы
+            "background-color: rgba(0, 0, 0, 0.5);" // Полупрозрачный черный фон
+            "border-radius: 5px;" // Закругленные углы
+            "}";
 
     gameLVL->setStyleSheet(labelStyle);
     mistakes->setStyleSheet(labelStyle);

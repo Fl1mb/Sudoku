@@ -1,7 +1,7 @@
 #include "graphics.h"
 
-Graphics::Graphics(QGraphicsView *parent): QGraphicsView(parent), scene(std::make_unique<QGraphicsScene>()),
-    engine(std::make_unique<Engine>()), mistakeCounter(0), ActionStack(std::stack<Action>())
+Graphics::Graphics(GAME_LEVEL lvl, QGraphicsView *parent): QGraphicsView(parent), scene(std::make_unique<QGraphicsScene>()),
+    engine(std::make_unique<Engine>(lvl)), mistakeCounter(0), ActionStack(std::stack<Action>())
 {
     this->setScene(this->scene.get());
     this->setRenderHint(QPainter::Antialiasing);
@@ -19,25 +19,48 @@ Graphics::Graphics(QGraphicsView *parent): QGraphicsView(parent), scene(std::mak
     }
 }
 
+Graphics::~Graphics()
+{
+    for (auto& row : array) {
+        for (auto& item : row) {
+            if (item) {
+                scene->removeItem(item.get()); // Удаляем элемент из сцены
+                item.reset();
+            }
+        }
+    }
+
+    for (auto& row : TextArray) {
+        for (auto& item : row) {
+            if (item) {
+                scene->removeItem(item.get()); // Удаляем элемент из сцены
+                item.reset();
+            }
+        }
+    }
+
+    for (auto& row : NotesArray) {
+        for (auto& item : row) {
+            if (item) {
+                scene->removeItem(item.get()); // Удаляем элемент из сцены
+                item.reset(); // Обнуляем указатель
+            }
+        }
+    }
+
+    // Удаляем сцену, если она еще не была удалена
+    scene.reset();
+}
+
 uint8_t Graphics::getMistakes()
 {
-    std::array<std::array<std::optional<uint8_t >, 9>,9> arr = this->engine->getFieldArray();
-
-///Функция проверки на ошибки
-/// Есть массив bool, типа была ли раньше такая ошибка или нет
-/// если была, то она уже не считается
-///
-
+    ///Функция проверки на ошибки
+    /// Есть массив bool, типа была ли раньше такая ошибка или нет
+    /// если была, то она уже не считается
     for(uint8_t i = 0; i < 9; i++){
         for(uint8_t j = 0; j < 9; j++){
-            if(this->TextArray[i][j]->toPlainText() == "" and arr[i][j] == std::nullopt)continue;
-            else if(this->TextArray[i][j]->toPlainText() != "" and arr[i][j] == std::nullopt){
-                if(!WasOrNotMistake[i][j])
-                    mistakeCounter++;
-                WasOrNotMistake[i][j] = true;
-                continue;
-            }
-            if(this->TextArray[i][j]->toPlainText().toInt() != arr[i][j].value()){
+            if(this->TextArray[i][j]->toPlainText() == "")continue;
+            if(this->TextArray[i][j]->toPlainText().toInt() != this->engine->getAnswer(i, j)){
                 if(!WasOrNotMistake[i][j])
                     mistakeCounter++;
                 WasOrNotMistake[i][j] = true;
@@ -46,7 +69,19 @@ uint8_t Graphics::getMistakes()
         }
     }
 
+    if(mistakeCounter > 3)emit this->GameEnd(Graphics::END_OF_GAME::LOSE);
     return mistakeCounter;
+}
+
+uint8_t Graphics::getEmptyFields() const
+{
+    uint8_t result{0};
+    for(uint8_t i = 0; i <9; i++){
+        for(uint8_t j = 0; j < 9; j++){
+            if(TextArray[i][j]->toPlainText() == "")result++;
+        }
+    }
+    return result;
 }
 
 bool Graphics::isChosen() const
@@ -54,12 +89,21 @@ bool Graphics::isChosen() const
     return this->chosenSquare.first.has_value();
 }
 
+bool Graphics::isWin() const
+{
+    for(uint8_t i = 0; i <9; i++){
+        for(uint8_t j = 0; j < 9; j++){
+            if(TextArray[i][j]->toPlainText().toUInt() != this->engine->getAnswer(i,j))return false;
+        }
+    }
+    return true;
+}
+
 void Graphics::changeChosen(const QString &number)
 {
     ///Метод который отрисовывает цифры на поле
     /// В зависимости от режима игры
     /// Пометки или на серьезке
-    ///
 
     if(this->NoteMode){
         NotesArray[chosenSquare.first.value()][chosenSquare.second.value()]->setPlainText(number);
@@ -77,6 +121,11 @@ void Graphics::changeChosen(const QString &number)
     RecentlyAdded.push_back({chosenSquare.first.value(), chosenSquare.second.value()});
 
 
+    if(!this->getEmptyFields()){
+        if(this->isWin()){
+            emit this->GameEnd(Graphics::END_OF_GAME::WIN);
+        }
+    }
     comeBack();
     chosenSquare.first = std::nullopt;
     chosenSquare.second = std::nullopt;
@@ -152,40 +201,40 @@ void Graphics::returnLastAction()
 
     // В зависимости от типа действия восстанавливаем состояние
     switch (lastAction.action) {
-        case Action::TYPE_OF_ACTION::ERASE:
-            // Восстанавливаем значение, которое было до удаления
-            if (lastAction.numberWAS.has_value()) {
-                this->TextArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
-            }
-            break;
+    case Action::TYPE_OF_ACTION::ERASE:
+        // Восстанавливаем значение, которое было до удаления
+        if (lastAction.numberWAS.has_value()) {
+            this->TextArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+        }
+        break;
 
-        case Action::TYPE_OF_ACTION::ADD:
-            // Если добавляли число, нужно удалить его
-            if (lastAction.numberWAS.has_value()) {
-                this->TextArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
-            }else{
-                this->TextArray[x][y]->setPlainText("");
-            }
-            break;
+    case Action::TYPE_OF_ACTION::ADD:
+        // Если добавляли число, нужно удалить его
+        if (lastAction.numberWAS.has_value()) {
+            this->TextArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+        }else{
+            this->TextArray[x][y]->setPlainText("");
+        }
+        break;
 
-        case Action::TYPE_OF_ACTION::MAKE_NOTE:
-            // Если добавляли заметку, нужно удалить её
-            if (lastAction.numberWAS.has_value()) {
-                this->NotesArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
-            }else{
-                this->NotesArray[x][y]->setPlainText("");
-            }
-            break;
+    case Action::TYPE_OF_ACTION::MAKE_NOTE:
+        // Если добавляли заметку, нужно удалить её
+        if (lastAction.numberWAS.has_value()) {
+            this->NotesArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+        }else{
+            this->NotesArray[x][y]->setPlainText("");
+        }
+        break;
 
-        case Action::TYPE_OF_ACTION::DELETE_NOTE:
-            // Восстанавливаем заметку, которая была удалена
-            if (lastAction.numberWAS.has_value()) {
-                this->NotesArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
-            }
-            break;
+    case Action::TYPE_OF_ACTION::DELETE_NOTE:
+        // Восстанавливаем заметку, которая была удалена
+        if (lastAction.numberWAS.has_value()) {
+            this->NotesArray[x][y]->setPlainText(QString::number(lastAction.numberWAS.value()));
+        }
+        break;
 
-        default:
-            break;
+    default:
+        break;
 
     }
 }
@@ -327,7 +376,7 @@ void Graphics::mousePressEvent(QMouseEvent *event)
         return;
     }
 
-    MARK:
+MARK:
     if(chosenSquare.first.has_value()){
         comeBack();
 

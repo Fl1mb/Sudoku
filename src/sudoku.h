@@ -19,10 +19,11 @@ class Sudoku : public QWidget
 {
     Q_OBJECT
 public:
-    Sudoku(QWidget* parent = nullptr);
-    ~Sudoku() = default;
+    Sudoku(GAME_LEVEL level,  QWidget* parent = nullptr);
+    ~Sudoku();
 
-
+signals:
+    void GameIsOver(Graphics::END_OF_GAME end);
 
 public slots:
 
@@ -30,6 +31,7 @@ public slots:
     void EraseNumber();
     void GiveHelp();
     void CancelAction();
+    void endGame(Graphics::END_OF_GAME end);
 
 private:
 
@@ -63,7 +65,7 @@ private:
 class InfoBar : public QWidget{
     Q_OBJECT
 public:
-    InfoBar(GAME_LEVEL lvl = GAME_LEVEL::EASY_LEVEL, QWidget* parent = nullptr);
+    InfoBar(GAME_LEVEL lvl, QWidget* parent = nullptr);
     ~InfoBar();
     void setMistakes(uint8_t mis);
 
@@ -86,6 +88,7 @@ class HelpBar : public QWidget{
     Q_OBJECT
 public:
     explicit HelpBar( QWidget* parent = nullptr);
+    ~HelpBar();
 
     bool isNotesMode()const;
 

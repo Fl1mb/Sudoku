@@ -20,30 +20,37 @@ class Graphics : public  QGraphicsView
 {
     Q_OBJECT
 public:
-    Graphics(QGraphicsView* parent = nullptr);
 
-    uint8_t getMistakes();
+    enum class END_OF_GAME : uint8_t{
+        WIN, LOSE
+    };
 
-    bool isChosen() const;
+    Graphics(GAME_LEVEL lvl, QGraphicsView* parent = nullptr);
+    ~Graphics();
+
     void changeChosen(const QString& number);
     void openRandomNumber();
-
     void StartPlaying();
-
     void eraseChosenNumber();
     void returnLastAction();
-
     void changeSudoku();
     void comeBack();
     void makeSudoku(const GameField& field);
-
+    void setNodeMode(bool mode);
     void configureTextSquare(int x, int y, const QString& str);
 
     bool checkMistakes() const;
+    bool isChosen() const;
+    bool isWin() const;
 
-    void setNodeMode(bool mode);
+    uint8_t getMistakes();
+    uint8_t getEmptyFields() const;
+
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+
+signals:
+    void GameEnd(END_OF_GAME end);
 
 private:
     struct Action;
@@ -51,28 +58,28 @@ private:
     std::array<std::array<std::unique_ptr<QGraphicsRectItem>,9>,9> array;
     std::array<std::array<std::unique_ptr<QGraphicsTextItem>,9>,9> TextArray;
     std::array<std::array<std::unique_ptr<QGraphicsTextItem>,9>,9> NotesArray;
+    std::array<std::array<bool,9>,9> WasOrNotMistake;
 
     std::vector<std::pair<uint8_t, uint8_t>> RecentlyAdded;
-
-    std::unique_ptr<QGraphicsScene> scene;
-
-    std::pair<std::optional<uint8_t>, std::optional<uint8_t>> chosenSquare;
     std::vector<std::pair<uint8_t, uint8_t>>HighlightedSquares;
-
-    std::unique_ptr<Engine> engine;
-
-    uint8_t mistakeCounter;
-
-    std::array<std::array<bool,9>,9> WasOrNotMistake;
 
     std::stack<Action> ActionStack;
 
+
+    std::pair<std::optional<uint8_t>, std::optional<uint8_t>> chosenSquare;
+
+
+    std::unique_ptr<Engine> engine;
+    std::unique_ptr<QGraphicsScene> scene;
+
+    uint8_t mistakeCounter;
     bool NoteMode;
 
     static constexpr QSize SubSIZE{55,55};
     static constexpr QSize SIZE{500, 500};
 
-    struct Action;
+
+
 };
 
 

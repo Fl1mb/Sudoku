@@ -10,12 +10,14 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
+    src/application.cpp \
     src/engine.cpp \
     src/gamefield.cpp \
     src/graphics.cpp \
     src/sudoku.cpp
 
 HEADERS += \
+    src/application.h \
     src/engine.h \
     src/gamefield.h \
     src/graphics.h \
